@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.Locale;
 import java.util.function.Supplier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -32,10 +33,9 @@ public class IpApiGeoIpClient implements GeoIpClient {
             CircuitBreakerRegistry circuitBreakerRegistry,
             RetryRegistry retryRegistry
     ) {
-        this.restTemplate = restTemplateBuilder
-                .setConnectTimeout(timeout)
-                .setReadTimeout(timeout)
-                .build();
+        ClientHttpRequestFactorySettings settings =
+                ClientHttpRequestFactorySettings.defaults().withTimeouts(timeout, timeout);
+        this.restTemplate = restTemplateBuilder.requestFactorySettings(settings).build();
         this.baseUrl = baseUrl;
         this.geoCache = geoCache;
         this.circuitBreaker = circuitBreakerRegistry.circuitBreaker("geoIp");

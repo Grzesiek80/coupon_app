@@ -55,3 +55,11 @@ Możliwe powody odrzucenia (`reason`):
 - `COUPON_EXHAUSTED`
 - `GEOIP_UNAVAILABLE`
 
+## Kluczowe cechy
+
+- Cache geolokalizacji IP w pamięci przy użyciu `Caffeine`.
+- Obsługa odporności z `Resilience4j`: `CircuitBreaker` + `Retry` dla zapytań do zewnętrznego serwisu GeoIP.
+- Optymistyczne blokowanie (`@Version`) w encji `Coupon` dla bezpiecznej aktualizacji liczby użyć.
+- Normalizacja kodów kuponów jest case-insensitive, więc `WIOSNA` i `wiosna` traktowane są jako ten sam kod.
+- Weryfikacja kraju klienta na podstawie IP i ograniczenie użycia kuponu według limitu.
+
