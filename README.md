@@ -8,7 +8,7 @@ REST API do zarządzania kuponami rabatowymi.
 
 ## Uruchomienie (Windows / PowerShell)
 
-W katalogu `server/`:
+W katalogu projektu:
 
 ```powershell
 ./gradlew bootRun
@@ -45,6 +45,7 @@ Body:
 }
 ```
 
+`userId` jest opcjonalne, ale jeśli zostanie podane, to kupon może być użyty tylko raz przez tego użytkownika.
 IP klienta jest brane z nagłówka `X-Forwarded-For` (pierwszy adres), a jeśli go brak – z `remoteAddr`.
 
 Możliwe powody odrzucenia (`reason`):
@@ -54,6 +55,27 @@ Możliwe powody odrzucenia (`reason`):
 - `ALREADY_USED_BY_USER`
 - `COUPON_EXHAUSTED`
 - `GEOIP_UNAVAILABLE`
+
+### Przykładowa odpowiedź akceptacji
+
+```json
+{
+  "couponId": "<uuid>",
+  "code": "WIOSNA",
+  "status": "ACCEPTED"
+}
+```
+
+### Przykładowa odpowiedź odrzucenia
+
+```json
+{
+  "couponId": "<uuid>",
+  "code": "WIOSNA",
+  "status": "REJECTED",
+  "reason": "COUPON_EXHAUSTED"
+}
+```
 
 ## Kluczowe cechy
 
