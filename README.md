@@ -28,7 +28,7 @@ Body:
 {
   "code": "WIOSNA",
   "maxUses": 5,
-  "countryIso2": "PL"
+  "country": "PL"
 }
 ```
 
