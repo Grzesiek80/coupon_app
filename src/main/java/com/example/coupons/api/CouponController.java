@@ -1,14 +1,15 @@
 package com.example.coupons.api;
 
+import com.example.coupons.api.dto.CouponDto;
 import com.example.coupons.api.dto.CreateCouponRequest;
 import com.example.coupons.api.dto.CreateCouponResponse;
 import com.example.coupons.api.dto.UseCouponRequest;
 import com.example.coupons.api.dto.UseCouponResponse;
-import com.example.coupons.domain.Coupon;
 import com.example.coupons.service.CouponService;
 import com.example.coupons.service.UseCouponResult;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,26 +20,23 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/coupons")
+@RequiredArgsConstructor
 public class CouponController {
     private static final String GEOIP_UNAVAILABLE_FALLBACK_MESSAGE =
             "This request could not be completed right now. Please try again in a moment.";
 
     private final CouponService couponService;
 
-    public CouponController(CouponService couponService) {
-        this.couponService = couponService;
-    }
-
     @PostMapping
     public ResponseEntity<CreateCouponResponse> create(@Valid @RequestBody CreateCouponRequest request) {
-        Coupon created = couponService.createCoupon(request.code(), request.maxUses(), request.countryIso2());
+        CouponDto created = couponService.createCoupon(request.code(), request.maxUses(), request.countryIso2());
         return ResponseEntity.status(HttpStatus.CREATED).body(new CreateCouponResponse(
-                created.getId(),
+                created.id(),
                 request.code(),
-                created.getCreatedAt(),
-                created.getMaxUses(),
-                created.getUsesCount(),
-                created.getCountryIso2()
+                created.createdAt(),
+                created.maxUses(),
+                created.usesCount(),
+                created.countryIso2()
         ));
     }
 

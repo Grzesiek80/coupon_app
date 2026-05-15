@@ -7,8 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.example.coupons.geoip.GeoIpClient;
-import com.example.coupons.geoip.GeoIpResult;
+import com.example.coupons.ip.IpClient;
+import com.example.coupons.ip.IpResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,11 +30,11 @@ class CouponControllerIT {
     MockMvc mvc;
 
     @MockitoBean
-    GeoIpClient geoIpClient;
+    IpClient ipClient;
 
     @BeforeEach
-    void geoIpPolandByDefault() {
-        when(geoIpClient.resolveCountryIso2(anyString())).thenReturn(GeoIpResult.success("PL"));
+    void ipPolandByDefault() {
+        when(ipClient.resolveCountry(anyString())).thenReturn(IpResult.success("PL"));
     }
 
     @Test
@@ -98,7 +98,7 @@ class CouponControllerIT {
                                 """))
                 .andExpect(status().isCreated());
 
-        when(geoIpClient.resolveCountryIso2(anyString())).thenReturn(GeoIpResult.success("DE"));
+        when(ipClient.resolveCountry(anyString())).thenReturn(IpResult.success("DE"));
 
         mvc.perform(post("/api/v1/coupons/use")
                         .header("X-Forwarded-For", "198.51.100.2")
@@ -120,7 +120,7 @@ class CouponControllerIT {
                                 """))
                 .andExpect(status().isCreated());
 
-        when(geoIpClient.resolveCountryIso2(anyString())).thenReturn(GeoIpResult.failure("unreachable"));
+        when(ipClient.resolveCountry(anyString())).thenReturn(IpResult.failure("unreachable"));
 
         mvc.perform(post("/api/v1/coupons/use")
                         .header("X-Forwarded-For", "203.0.113.10")

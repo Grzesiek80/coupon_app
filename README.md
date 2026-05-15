@@ -79,9 +79,16 @@ Możliwe powody odrzucenia (`reason`):
 
 ## Kluczowe cechy
 
-- Cache geolokalizacji IP w pamięci przy użyciu `Caffeine`.
+- Cache geolokalizacji IP w pamięci przy użyciu `Caffeine` (można zastąpić Redis dla środowiska rozproszonego).
 - Obsługa odporności z `Resilience4j`: `CircuitBreaker` + `Retry` dla zapytań do zewnętrznego serwisu GeoIP.
 - Optymistyczne blokowanie (`@Version`) w encji `Coupon` dla bezpiecznej aktualizacji liczby użyć.
+- Retry mechanizm dla `OptimisticLockingFailureException` - maksymalnie 3 próby przy konfliktach współbieżności.
 - Normalizacja kodów kuponów jest case-insensitive, więc `WIOSNA` i `wiosna` traktowane są jako ten sam kod.
 - Weryfikacja kraju klienta na podstawie IP i ograniczenie użycia kuponu według limitu.
+
+## Skalowalność i środowisko rozproszone
+
+- **Współbieżność**: Optymistyczne blokowanie z retry mechanizmem zapewnia bezpieczeństwo w środowisku wielowątkowym.
+- **Cache**: Lokalny cache Caffeine - dla środowiska rozproszonego można dodać Redis.
+- **Baza danych**: Atomowe operacje `UPDATE` zapewniają spójność nawet przy wielu instancjach aplikacji.
 

@@ -1,4 +1,4 @@
-package com.example.coupons.geoip;
+package com.example.coupons.ip;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -24,11 +24,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-class IpApiGeoIpClientTest {
+class IpApiClientTest {
     private RestTemplate restTemplate;
     private RestTemplateBuilder restTemplateBuilder;
-    private Cache<String, GeoIpResult> geoCache;
-    private IpApiGeoIpClient client;
+    private Cache<String, IpResult> geoCache;
+    private IpApiClient client;
 
     @BeforeEach
     void setUp() {
@@ -56,7 +56,7 @@ class IpApiGeoIpClientTest {
         RetryConfig retryConfig = RetryConfig.custom().maxAttempts(1).build();
         RetryRegistry retryRegistry = RetryRegistry.of(retryConfig);
 
-        client = new IpApiGeoIpClient(
+        client = new IpApiClient(
                 restTemplateBuilder,
                 "http://ip-api.com",
                 Duration.ofSeconds(2),
@@ -68,7 +68,7 @@ class IpApiGeoIpClientTest {
 
     @Test
     void shouldReturnFailureForBlankIpWithoutHttpCall() {
-        GeoIpResult result = client.resolveCountryIso2("  ");
+        IpResult result = client.resolveCountry("  ");
 
         assertThat(result.success()).isFalse();
         assertThat(result.message()).contains("Missing IP");
@@ -77,12 +77,12 @@ class IpApiGeoIpClientTest {
 
     @Test
     void shouldUseCacheWhenValueExists() {
-        geoCache.put("203.0.113.10", GeoIpResult.success("PL"));
+        geoCache.put("203.0.113.10", IpResult.success("PL"));
 
-        GeoIpResult result = client.resolveCountryIso2("203.0.113.10");
+        IpResult result = client.resolveCountry("203.0.113.10");
 
         assertThat(result.success()).isTrue();
-        assertThat(result.countryIso2()).isEqualTo("PL");
+        assertThat(result.country()).isEqualTo("PL");
         verifyNoInteractions(restTemplate);
     }
 
@@ -92,11 +92,11 @@ class IpApiGeoIpClientTest {
                 .when(restTemplate)
                 .getForEntity(anyString(), any(Class.class));
 
-        GeoIpResult firstFailure = client.resolveCountryIso2("203.0.113.10");
-        GeoIpResult secondFailure = client.resolveCountryIso2("203.0.113.10");
+        IpResult firstFailure = client.resolveCountry("203.0.113.10");
+        IpResult secondFailure = client.resolveCountry("203.0.113.10");
 
         assertThat(firstFailure.success()).isFalse();
-        assertThat(firstFailure.message()).contains("GeoIP lookup error");
+        assertThat(firstFailure.message()).contains("IP lookup error");
         assertThat(secondFailure.success()).isFalse();
         assertThat(secondFailure.message()).contains("temporarily unavailable");
     }

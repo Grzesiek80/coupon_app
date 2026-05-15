@@ -1,10 +1,11 @@
 package com.example.coupons.service;
 
+import com.example.coupons.api.dto.CouponDto;
 import com.example.coupons.domain.Coupon;
 import com.example.coupons.domain.CouponCodeNormalizer;
 import com.example.coupons.domain.CouponUsage;
-import com.example.coupons.geoip.GeoIpClient;
-import com.example.coupons.geoip.GeoIpResult;
+import com.example.coupons.ip.IpClient;
+import com.example.coupons.ip.IpResult;
 import com.example.coupons.repo.CouponRepository;
 import com.example.coupons.repo.CouponUsageRepository;
 import jakarta.transaction.Transactional;
@@ -12,22 +13,32 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class CouponService {
     private final CouponRepository couponRepository;
     private final CouponUsageRepository couponUsageRepository;
-    private final GeoIpClient geoIpClient;
+    private final IpClient ipClient;
+    private final TransactionTemplate transactionTemplate;
 
-    public CouponService(CouponRepository couponRepository, CouponUsageRepository couponUsageRepository, GeoIpClient geoIpClient) {
+    public CouponService(
+            CouponRepository couponRepository,
+            CouponUsageRepository couponUsageRepository,
+            IpClient ipClient,
+            PlatformTransactionManager transactionManager
+    ) {
         this.couponRepository = couponRepository;
         this.couponUsageRepository = couponUsageRepository;
-        this.geoIpClient = geoIpClient;
+        this.ipClient = ipClient;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @Transactional
-    public Coupon createCoupon(String code, int maxUses, String countryIso2) {
+    public CouponDto createCoupon(String code, int maxUses, String countryIso2) {
         String normalized = CouponCodeNormalizer.normalize(code);
         String country = countryIso2.trim().toUpperCase(Locale.ROOT);
 
@@ -41,13 +52,13 @@ public class CouponService {
         );
 
         try {
-            return couponRepository.saveAndFlush(coupon);
+            Coupon saved = couponRepository.saveAndFlush(coupon);
+            return CouponDto.from(saved);
         } catch (DataIntegrityViolationException ex) {
             throw new CouponValidationException("Coupon code already exists");
         }
     }
 
-    @Transactional
     public UseCouponResult useCoupon(String code, String userId, String ip) {
         String normalized = CouponCodeNormalizer.normalize(code);
         if (normalized == null || normalized.isBlank()) {
@@ -60,11 +71,11 @@ public class CouponService {
         }
         Coupon coupon = couponOpt.get();
 
-        GeoIpResult geo = geoIpClient.resolveCountryIso2(ip);
+        IpResult geo = ipClient.resolveCountry(ip);
         if (!geo.success()) {
             return UseCouponResult.rejected(coupon.getId(), normalized, "GEOIP_UNAVAILABLE");
         }
-        if (!coupon.getCountryIso2().equalsIgnoreCase(geo.countryIso2())) {
+        if (!coupon.getCountryIso2().equalsIgnoreCase(geo.country())) {
             return UseCouponResult.rejected(coupon.getId(), normalized, "COUNTRY_NOT_ALLOWED");
         }
 
@@ -75,21 +86,35 @@ public class CouponService {
             }
         }
 
-        int updated = couponRepository.tryIncrementUseCount(coupon.getId());
-        if (updated == 0) {
-            return UseCouponResult.rejected(coupon.getId(), normalized, "COUPON_EXHAUSTED");
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                return transactionTemplate.execute(status -> {
+                    Coupon current = couponRepository.findById(coupon.getId()).orElseThrow();
+                    if (current.getUsesCount() >= current.getMaxUses()) {
+                        return UseCouponResult.rejected(current.getId(), normalized, "COUPON_EXHAUSTED");
+                    }
+
+                    current.setUsesCount(current.getUsesCount() + 1);
+                    couponRepository.saveAndFlush(current);
+                    couponUsageRepository.save(new CouponUsage(
+                            UUID.randomUUID(),
+                            current.getId(),
+                            (userId == null || userId.isBlank()) ? null : userId.trim(),
+                            Instant.now(),
+                            ip,
+                            geo.country()
+                    ));
+
+                    return UseCouponResult.accepted(current.getId(), normalized);
+                });
+            } catch (ObjectOptimisticLockingFailureException e) {
+                if (attempt == 3) {
+                    throw e;
+                }
+            }
         }
 
-        couponUsageRepository.save(new CouponUsage(
-                UUID.randomUUID(),
-                coupon.getId(),
-                (userId == null || userId.isBlank()) ? null : userId.trim(),
-                Instant.now(),
-                ip,
-                geo.countryIso2()
-        ));
-
-        return UseCouponResult.accepted(coupon.getId(), normalized);
+        return UseCouponResult.rejected(coupon.getId(), normalized, "COUPON_EXHAUSTED");
     }
 }
 

@@ -7,9 +7,15 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "coupon")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Coupon {
     @Id
     private UUID id;
@@ -24,6 +30,7 @@ public class Coupon {
     private int maxUses;
 
     @Column(name = "uses_count", nullable = false)
+    @Setter
     private int usesCount;
 
     @Column(name = "country_iso2", nullable = false, length = 2)
@@ -32,8 +39,6 @@ public class Coupon {
     @Version
     private long version;
 
-    protected Coupon() {}
-
     public Coupon(UUID id, String codeNormalized, Instant createdAt, int maxUses, int usesCount, String countryIso2) {
         this.id = id;
         this.codeNormalized = codeNormalized;
@@ -41,30 +46,6 @@ public class Coupon {
         this.maxUses = maxUses;
         this.usesCount = usesCount;
         this.countryIso2 = countryIso2;
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public String getCodeNormalized() {
-        return codeNormalized;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public int getMaxUses() {
-        return maxUses;
-    }
-
-    public int getUsesCount() {
-        return usesCount;
-    }
-
-    public String getCountryIso2() {
-        return countryIso2;
     }
 }
 

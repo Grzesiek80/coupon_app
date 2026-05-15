@@ -1,4 +1,4 @@
-package com.example.coupons.geoip;
+package com.example.coupons.ip;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
@@ -18,18 +18,18 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 @Component
-public class IpApiGeoIpClient implements GeoIpClient {
+public class IpApiClient implements IpClient {
     private final RestTemplate restTemplate;
     private final String baseUrl;
-    private final Cache<String, GeoIpResult> geoCache;
+    private final Cache<String, IpResult> geoCache;
     private final CircuitBreaker circuitBreaker;
     private final Retry retry;
 
-    public IpApiGeoIpClient(
+    public IpApiClient(
             RestTemplateBuilder restTemplateBuilder,
-            @Value("${app.geoip.base-url}") String baseUrl,
-            @Value("${app.geoip.timeout}") Duration timeout,
-            Cache<String, GeoIpResult> geoCache,
+            @Value("${app.ip.base-url}") String baseUrl,
+            @Value("${app.ip.timeout}") Duration timeout,
+            Cache<String, IpResult> geoCache,
             CircuitBreakerRegistry circuitBreakerRegistry,
             RetryRegistry retryRegistry
     ) {
@@ -43,25 +43,25 @@ public class IpApiGeoIpClient implements GeoIpClient {
     }
 
     @Override
-    public GeoIpResult resolveCountryIso2(String ip) {
+    public IpResult resolveCountry(String ip) {
         if (ip == null || ip.isBlank()) {
-            return GeoIpResult.failure("Missing IP address");
+            return IpResult.failure("Missing IP address");
         }
 
         String key = ip.trim();
-        GeoIpResult cached = geoCache.getIfPresent(key);
+        IpResult cached = geoCache.getIfPresent(key);
         if (cached != null) {
             return cached;
         }
 
-        GeoIpResult resolved = lookup(key);
+        IpResult resolved = lookup(key);
         if (resolved.success()) {
             geoCache.put(key, resolved);
         }
         return resolved;
     }
 
-    private GeoIpResult lookup(String ip) {
+    private IpResult lookup(String ip) {
         String url = baseUrl + "/json/" + ip + "?fields=status,countryCode,message";
         Supplier<ResponseEntity<IpApiResponse>> http =
                 () -> restTemplate.getForEntity(url, IpApiResponse.class);
@@ -73,21 +73,21 @@ public class IpApiGeoIpClient implements GeoIpClient {
             IpApiResponse body = resp.getBody();
 
             if (body == null) {
-                return GeoIpResult.failure("Empty GeoIP response");
+                return IpResult.failure("Empty IP response");
             }
             if (!"success".equalsIgnoreCase(body.status())) {
-                return GeoIpResult.failure(body.message() != null ? body.message() : "GeoIP lookup failed");
+                return IpResult.failure(body.message() != null ? body.message() : "IP lookup failed");
             }
             if (body.countryCode() == null || body.countryCode().isBlank()) {
-                return GeoIpResult.failure("Missing countryCode in GeoIP response");
+                return IpResult.failure("Missing countryCode in IP response");
             }
-            return GeoIpResult.success(body.countryCode().toUpperCase(Locale.ROOT));
+            return IpResult.success(body.countryCode().toUpperCase(Locale.ROOT));
         } catch (CallNotPermittedException e) {
-            return GeoIpResult.failure("GeoIP temporarily unavailable");
+            return IpResult.failure("IP temporarily unavailable");
         } catch (RuntimeException ex) {
             for (Throwable c = ex; c != null; c = c.getCause()) {
                 if (c instanceof RestClientException) {
-                    return GeoIpResult.failure("GeoIP lookup error");
+                    return IpResult.failure("IP lookup error");
                 }
             }
             throw ex;

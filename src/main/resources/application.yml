@@ -40,7 +40,7 @@ resilience4j:
         permittedNumberOfCallsInHalfOpenState: 5
         automaticTransitionFromOpenToHalfOpenEnabled: true
     instances:
-      geoIp:
+      ip:
         baseConfig: default
   retry:
     configs:
@@ -54,11 +54,11 @@ resilience4j:
         ignoreExceptions:
           - io.github.resilience4j.circuitbreaker.CallNotPermittedException
     instances:
-      geoIp:
+      ip:
         baseConfig: default
 
 app:
-  geoip:
+  ip:
     base-url: http://ip-api.com
     timeout: 2s
 
